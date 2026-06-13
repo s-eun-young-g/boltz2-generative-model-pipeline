@@ -1,0 +1,9 @@
+# Pip-installable core. NOTE: pdbfixer, openmm, and ambertools are conda-forge
+# packages and aren't reliably pip-installable — for the full environment use
+# `conda env create -f environment.yml`. Boltz-2: `pip install boltz`.
+numpy
+pandas
+scipy
+matplotlib
+biopython
+boltz

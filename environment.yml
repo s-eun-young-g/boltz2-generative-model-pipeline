@@ -1,0 +1,21 @@
+name: boltz-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  # core scientific stack
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  # structure I/O
+  - biopython
+  - pdbfixer
+  # MD engine
+  - openmm
+  # AMBER tools (tleap, parmchk2, …) for prmtop/rst7 + energies
+  - ambertools
+  - pip
+  - pip:
+      # Boltz-2 itself (see https://github.com/jwohlwend/boltz for the current install)
+      - boltz

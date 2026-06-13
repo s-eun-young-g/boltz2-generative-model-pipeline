@@ -1,57 +1,80 @@
-# 1. Environment/dependencies installed
+# Boltz-2 RNA Energetics Pipeline
 
-I established my environment and installed dependencies as follows:
+Does the *folded, relaxed* energy of a 5′UTR predict how efficiently it's
+translated? This pipeline tests that on the **egfp_unmod_1** dataset: it folds
+each 5′UTR with Boltz-2, relaxes the structure under a physics force field, and
+correlates the relaxed energy against measured **ribosomal load** (a readout of
+translation efficiency).
 
-make env
-conda create -y -n boltz-env python=3.10
+Energetics analysis built under **Dr. Daniel Mukasa**, toward a Boltz-2-based
+generative model for 5′UTR design.
 
-activate
+## Result
+
+On egfp_unmod_1, relaxed structural energy is a **weak but highly significant**
+predictor of ribosomal load — **but only once AUG-containing 5′UTRs are excluded.**
+
+- Across *all* sequences the relationship is effectively absent (Pearson r ≈ 0).
+- Excluding 5′UTRs that contain an AUG — whose upstream start codons tend to
+  dominate translation and mask any structural signal — reveals a positive
+  correlation of **Pearson r = 0.196 (p = 4.1×10⁻⁴⁹, n ≈ 18k)**.
+
+So the effect is real and directional, but small: on its own, relaxed energy
+explains only a few percent of the variance in ribosomal load. The more
+interesting takeaway is methodological — the relationship is invisible until you
+control for AUG content, which is exactly the kind of confound a structure-energy
+model has to account for.
+
+![ribosomal load vs relaxed energy (AUG-excluded, IQR-filtered)](rl_vs_E_relaxed_ATG_outlier_filtered.png)
+
+## What it does
+
+1. **Fold** each 5′UTR with Boltz-2 (`run_predictions.py`). Sequences are
+   canonicalised T→U for Boltz, and capped at 50 nt — around the length past which
+   Boltz folding reliability drops, so longer UTRs don't misfold.
+2. **Clean** the predicted PDBs: strip the 5′-phosphate atoms (the OL3.RNA force
+   field has no template for a phosphorylated 5′ end) and fix residue spacing.
+3. **Relax** each structure in vacuum (`vacuum_150_relaxation.py`).
+4. **Repair** the edited native PDBs for energy calculation
+   (`repair_native_pdbs.sh`), then build prmtop/rst7 files (`make_prmtops.sh`).
+5. **Compute** native vs. relaxed energies and their difference
+   (`compare_energies.py`).
+6. **Correlate** relaxed energy with ribosomal load (`rl_vs_e_plot.py`), excluding
+   AUG-containing UTRs and removing energy outliers by the Tukey IQR rule.
+
+## Data
+
+**egfp_unmod_1** — eGFP 5′UTR library with polysome-profiling ribosomal load,
+from GSE114002: <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114002>.
+`rl_E_relaxed_pairs.csv` holds the full set of (ribosomal load, relaxed energy)
+pairs produced by this pipeline.
+
+## Run
+
+```bash
+conda env create -f environment.yml      # or: pip install -r requirements.txt (see notes)
 conda activate boltz-env
 
-core scientific stack
-conda install -y -c conda-forge numpy pandas scipy matplotlib
+python run_predictions.py --input <utrs.fasta>   # 1. fold with Boltz-2
+#   (strip 5'-phosphate atoms + clean formatting on the predicted PDBs)
+python vacuum_150_relaxation.py                  # 2. relax structures in vacuum
+bash repair_native_pdbs.sh                       # 3. repair the edited native PDBs
+bash make_prmtops.sh                             # 4. build prmtop / rst7 files
+python compare_energies.py                       # 5. native vs. relaxed energies
+python rl_vs_e_plot.py                           # 6. correlate energy vs ribosomal load
+```
 
-structure I/O
-conda install -y -c conda-forge biopython pdbfixer
+`rl_vs_e_plot.py` has path constants at the top (energy CSV, native PDB dir,
+output dir) — set those for your layout before running.
 
-MD engine
-conda install -y -c conda-forge openmm
+## Scope & caveats
 
-AMBER tools (tleap, parmchk2, etc.)
-conda install -y -c conda-forge ambertools
-
-See the full list of packages installed in my environment in packages.csv.
-
-# 2. Dataset used
-
-I used the egfp_unmod_1 dataset found here: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114002
-
-# 3. Running Boltz-2 predictions
-
-I ran my predictions using the most up-to-date version of Boltz-2 as of June 30th, 2025. To run the predictions, I used the script uploaded as run_predictions.py. 
-
-Some notes: this script finds and replaces all instances of the nucleotide T with the nucleotide U to avoid errors in Boltz’ processing of the sequences. Furthermore, a 50 nucleotide cap is included for both performance and runtime reasons, but more importantly because it is around the maximum sequence length for which Boltz remains reliable and accurate. I included this cap to avoid potential misfolding of any longer sequences.
-
-# 4. Running energy minimizations
-
-Before I was able to run minimizations, I needed to modify the pdb files output by Boltz first. I deleted the first 3 atoms of every PDB file, as tleap was unable to recognize the 5′-phosphate cap that remained on the first residues (as the force field used, OL3.RNA, only has templates for de-phosphorylated 5’ ends).
-
-I then cleaned up the formatting of all the pdb files, as I encountered spacing issues.
-
-I then used the script vacuum_150_relaxation.py to relax the edited pdbs in a vacuum.
-
-# 5. Preparing files for energy calculations
-
-Now, I had two sets of pdbs: the edited native pdbs and the relaxed versions of these pdbs. Before running energy calculations, I needed to prepare these files using two scripts. The first script, fix_native_pdbs.sh, repairs all of the edited native pdbs I removed the first 3 atoms of (repairing the minimized pdbs is not necessary, as it was done as part of the relaxation process). The second script, make_prmtops.sh, generate prmtops/rst7 files for all the repaired native and relaxed pdbs.
-
-# 6. Running energy calculations
-
-I used the script compare_energies.py to compute the energies of the native and relaxed pdbs, as well as their difference.
-
-# 7. Plotting results
-
-I then used rl_vs_e_plot.py to plot the ribosomal load of each sequence to its relaxed energy. This script filters out sequences containing AUG/ATG and filters out outliers according to the IQR method.
-
-# 8. Results
-
-You can find a full list of all ribosome load-energy pairs in rl_E_relaxed_pairs.csv and my final plot, rl_vs_E_relaxed_ATG_outlier_filtered.png, uploaded in this directory.
+- **One dataset, one cell line.** Results are for egfp_unmod_1 only; no claim is
+  made that they generalise to other UTR libraries.
+- **Vacuum relaxation,** not explicit-solvent MD — a fast approximation, not a
+  full free-energy estimate.
+- **Correlational and weak.** r = 0.196 is a real but small effect, significant
+  largely because n is large; this is a signal worth modelling, not a predictor on
+  its own.
+- The headline relationship **depends on excluding AUG-containing UTRs**; that
+  exclusion is part of the finding, not a footnote.
