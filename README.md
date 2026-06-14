@@ -1,13 +1,19 @@
 # Boltz-2 RNA Energetics Pipeline
 
-Does the *folded, relaxed* energy of a 5′UTR predict how efficiently it's
-translated? This pipeline tests that on the **egfp_unmod_1** dataset: it folds
-each 5′UTR with Boltz-2, relaxes the structure under a physics force field, and
-correlates the relaxed energy against measured **ribosomal load** (a readout of
-translation efficiency).
+The question I wanted to answer: **does the folded, relaxed *energy* of a 5′UTR say
+anything about how efficiently it gets translated?** This pipeline puts that to the
+test on the **egfp_unmod_1** dataset — fold each 5′UTR with Boltz-2, relax the
+structure under a physics force field, and correlate that relaxed energy against
+measured **ribosomal load** (a readout of translation efficiency).
 
 Energetics analysis built under **Dr. Daniel Mukasa**, toward a Boltz-2-based
 generative model for 5′UTR design.
+
+> **Status:** the single correlation below is the confirmed result on this one
+> dataset — stated exactly, not rounded up. Everything here is honest about being a
+> first pass (one dataset, vacuum relaxation, a weak-but-real effect); see
+> *Scope & caveats* at the bottom. Natural next steps: more datasets, explicit-
+> solvent relaxation, and feeding this energy signal into the generative model.
 
 ## Result
 
